@@ -2,8 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // JSONBin.io configuration
     const API_KEY = "$2a$10$9kHgztOh.ilOXFRyT1yKDeAOzehtWhzDjvlljalagFGpJkisFEcV6";
     const ACCESS_KEY = "$2a$10$8uNP9HMoovTq15LIREAxU.DpP78ZU.YdxjYUfUDeHkV2ZWFYWBdTu";
-    const BIN_ID = "6828bab78561e97a5015e483";
-    const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+    const API_URL = "https://generich.my.id/api.php";
 
     // Time limits based on user roles
     const TIME_LIMITS = {
