@@ -2,7 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // JSONBin.io configuration
     const API_KEY = "$2a$10$9kHgztOh.ilOXFRyT1yKDeAOzehtWhzDjvlljalagFGpJkisFEcV6";
     const ACCESS_KEY = "$2a$10$8uNP9HMoovTq15LIREAxU.DpP78ZU.YdxjYUfUDeHkV2ZWFYWBdTu";
-    const API_URL = "https://generich.my.id/api.php";
+    const BIN_ID = "6828bab78561e97a5015e483";
+    const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
     // Time limits based on user roles
     const TIME_LIMITS = {
@@ -1061,113 +1062,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function updateUsers(usersData) {
-    try {
-        // 1. Validasi input
-        if (!usersData || typeof usersData !== 'object') {
-            throw new Error('Invalid user data format');
-        }
-
-        // 2. Enkripsi data sebelum dikirim
-        const encryptedData = {
-            timestamp: Date.now(),
-            payload: await encryptPayload(usersData),
-            checksum: await generateChecksum(usersData)
-        };
-
-        // 3. Tambahkan nonce untuk mencegah replay attacks
-        const nonce = window.crypto.getRandomValues(new Uint32Array(1))[0].toString(16);
-        
-        // 4. Buat signature request
-        const requestSignature = await generateRequestSignature(encryptedData, nonce);
-
-        // 5. Kirim request dengan proteksi tambahan
         const response = await fetch(API_URL, {
             method: 'PUT',
             headers: {
-                'Content-Type': 'application/octet-stream', // Sembunyikan tipe data asli
-                'X-Request-Signature': requestSignature,
-                'X-Request-Nonce': nonce,
-                'X-Request-Timestamp': encryptedData.timestamp,
-                'X-Request-Checksum': encryptedData.checksum,
-                'X-Master-Key': await generateDynamicKey(), // Key tidak statis
-                'X-Access-Key': await generateSessionToken()
+                'Content-Type': 'application/json',
+                'X-Master-Key': API_KEY,
+                'X-Access-Key': ACCESS_KEY
             },
-            body: JSON.stringify(encryptedData)
+            body: JSON.stringify(usersData)
         });
-
-        // 6. Validasi response
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
-        }
-
-        // 7. Dekripsi dan validasi response
-        const responseData = await response.json();
-        return await decryptAndVerifyResponse(responseData);
-
-    } catch (error) {
-        console.error('Update users failed:', error.message);
-        // Log error ke monitoring system
-        logSecurityEvent('UPDATE_USERS_ERROR', error);
-        throw error; // Re-throw untuk handling di caller
+        
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        
+        return response.json();
     }
-}
-
-// Fungsi helper untuk enkripsi
-async function encryptPayload(data) {
-    const encoder = new TextEncoder();
-    const dataBuffer = encoder.encode(JSON.stringify(data));
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
-    const key = await window.crypto.subtle.importKey(
-        'raw',
-        encoder.encode(await generateDynamicKey()),
-        { name: 'AES-GCM' },
-        false,
-        ['encrypt']
-    );
-    const encrypted = await window.crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv },
-        key,
-        dataBuffer
-    );
-    return { iv: Array.from(iv), data: Array.from(new Uint8Array(encrypted)) };
-}
-
-// Fungsi untuk generate checksum
-async function generateChecksum(data) {
-    const encoder = new TextEncoder();
-    const dataBuffer = encoder.encode(JSON.stringify(data));
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', dataBuffer);
-    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-// Fungsi untuk generate dynamic key
-async function generateDynamicKey() {
-    const masterKey = API_KEY; // Dari environment atau config terenkripsi
-    const timestamp = Math.floor(Date.now() / 60000); // Berubah setiap menit
-    const encoder = new TextEncoder();
-    const keyBuffer = encoder.encode(`${masterKey}:${timestamp}`);
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', keyBuffer);
-    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
-}
-
-// Fungsi untuk generate session token
-async function generateSessionToken() {
-    if (!window.sessionToken) {
-        const randomBytes = window.crypto.getRandomValues(new Uint8Array(32));
-        window.sessionToken = Array.from(randomBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-    }
-    return window.sessionToken;
-}
-
-// Fungsi untuk generate request signature
-async function generateRequestSignature(data, nonce) {
-    const secret = await generateDynamicKey();
-    const encoder = new TextEncoder();
-    const dataToSign = `${secret}:${nonce}:${data.timestamp}:${JSON.stringify(data.payload)}`;
-    const signatureBuffer = await window.crypto.subtle.digest('SHA-512', encoder.encode(dataToSign));
-    return Array.from(new Uint8Array(signatureBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
+});
 
 // Function to hash a string using SHA-256
 async function hashString(str) {
